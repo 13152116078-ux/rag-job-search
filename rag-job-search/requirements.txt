@@ -1,0 +1,18 @@
+﻿# 核心依赖（已验证可用的版本组合）
+torch==2.15.0
+transformers==4.49.0
+sentence-transformers==3.4.1
+chromadb==1.5.9
+tiktoken==0.14.0
+
+# 检索
+jieba==0.42.1
+rank-bm25==0.2.2
+
+# 服务
+fastapi==0.162.5
+uvicorn==0.54.0
+
+# 数据处理
+numpy
+pandas

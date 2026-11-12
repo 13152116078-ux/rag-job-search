@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>岗位检索助手</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh; padding: 24px;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 28px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.18); margin-bottom: 20px;
+  }
+  h1 { font-size: 24px; color: #2d3748; margin-bottom: 6px; }
+  .sub { color: #718096; font-size: 14px; margin-bottom: 20px; }
+
+  /* 标签页 */
+  .tabs { display: flex; gap: 8px; margin-bottom: 22px; border-bottom: 2px solid #edf2f7; }
+  .tab {
+    padding: 12px 22px; font-size: 15px; font-weight: 600; color: #a0aec0;
+    cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px;
+    transition: all .2s; user-select: none;
+  }
+  .tab:hover { color: #667eea; }
+  .tab.active { color: #667eea; border-bottom-color: #667eea; }
+
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  .row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  input[type=text], textarea {
+    flex: 1; min-width: 240px; padding: 13px 16px; font-size: 15px;
+    border: 2px solid #e2e8f0; border-radius: 10px; outline: none;
+    transition: border-color .2s; font-family: inherit;
+  }
+  input[type=text]:focus, textarea:focus { border-color: #667eea; }
+  textarea { width: 100%; min-height: 200px; resize: vertical; line-height: 1.6; }
+  select {
+    padding: 13px 12px; font-size: 15px; border: 2px solid #e2e8f0;
+    border-radius: 10px; background: #fff; outline: none; font-family: inherit; cursor: pointer;
+  }
+  button {
+    padding: 13px 28px; font-size: 15px; font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, #667eea, #764ba2); border: none;
+    border-radius: 10px; cursor: pointer; transition: transform .15s, box-shadow .15s;
+    font-family: inherit;
+  }
+  button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(102,126,234,.4); }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  .hint { font-size: 13px; color: #a0aec0; margin-bottom: 16px; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tag {
+    padding: 6px 14px; background: #f7fafc; border: 1px solid #e2e8f0;
+    border-radius: 20px; font-size: 13px; color: #4a5568; cursor: pointer;
+    transition: all .15s;
+  }
+  .tag:hover { background: #667eea; color: #fff; border-color: #667eea; }
+  .status { font-size: 14px; color: #718096; margin-bottom: 16px; min-height: 20px; }
+  .status.err { color: #e53e3e; }
+  .job {
+    border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px;
+    margin-bottom: 12px; transition: box-shadow .15s;
+  }
+  .job:hover { box-shadow: 0 4px 14px rgba(0,0,0,.07); }
+  .job-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+  .job-title { font-size: 16px; font-weight: 600; color: #2d3748; line-height: 1.4; }
+  .job-salary { color: #e53e3e; font-weight: 700; font-size: 15px; white-space: nowrap; }
+  .job-meta { font-size: 13px; color: #718096; line-height: 1.8; }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 6px;
+    font-size: 12px; background: #edf2f7; color: #4a5568; margin-right: 6px;
+  }
+  .badge.hit { background: #c6f6d5; color: #22543d; }
+  .badge.miss { background: #fed7d7; color: #742a2a; }
+  .empty { text-align: center; padding: 40px; color: #a0aec0; font-size: 15px; }
+  .footer { text-align: center; color: rgba(255,255,255,.75); font-size: 13px; padding: 10px; }
+
+  /* 匹配分 */
+  .score-bar { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .score-track { flex: 1; height: 8px; background: #edf2f7; border-radius: 4px; overflow: hidden; }
+  .score-fill { height: 100%; background: linear-gradient(90deg, #48bb78, #38a169); transition: width .4s; }
+  .score-num { font-size: 18px; font-weight: 700; color: #38a169; min-width: 52px; text-align: right; }
+  .score-num.low { color: #dd6b20; }
+  .score-num.mid { color: #d69e2e; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>🔍 岗位检索助手</h1>
+    <p class="sub">基于 243 条真实岗位数据 · 语义检索 + 关键词检索 + 智能重排</p>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('search', this)">💬 搜岗位</div>
+      <div class="tab" onclick="switchTab('match', this)">📄 简历匹配</div>
+    </div>
+
+    <!-- ========== 标签1：搜索 ========== -->
+    <div class="pane active" id="pane-search">
+      <div class="row">
+        <input type="text" id="q" placeholder="比如：西安有哪些 15K 以上的大模型岗位？"
+               onkeydown="if(event.key==='Enter')doSearch()">
+        <select id="top">
+          <option value="5">看前 5 条</option>
+          <option value="10" selected>看前 10 条</option>
+          <option value="20">看前 20 条</option>
+        </select>
+        <button id="btn" onclick="doSearch()">开始搜索</button>
+      </div>
+
+      <p class="hint">💡 输入越具体越准。想只看技术岗，就加「技术岗」「开发」「算法」这些词。</p>
+
+      <div class="examples">
+        <span class="tag" onclick="fill('西安有哪些15K以上的大模型技术岗')">15K 以上技术岗</span>
+        <span class="tag" onclick="fill('需要 PyTorch 的岗位')">需要 PyTorch</span>
+        <span class="tag" onclick="fill('应届生能投的AI岗')">应届生 AI 岗</span>
+        <span class="tag" onclick="fill('哪些公司招 Agent 开发')">Agent 开发</span>
+        <span class="tag" onclick="fill('计算机视觉算法工程师')">计算机视觉</span>
+      </div>
+
+      <div class="status" id="status"></div>
+      <div id="results"></div>
+    </div>
+
+    <!-- ========== 标签2：简历匹配 ========== -->
+    <div class="pane" id="pane-match">
+      <p class="hint">
+        📌 把你的简历内容粘贴到下面（或直接传 .txt 文件）。系统会抽取你的技能，和岗位库做匹配打分。
+      </p>
+
+      <div class="row">
+        <input type="file" id="fileInput" accept=".txt,.md" onchange="loadFile(event)"
+               style="flex:1;padding:9px;border:2px dashed #cbd5e0;border-radius:10px;cursor:pointer">
+      </div>
+
+      <textarea id="resume" placeholder="把简历内容粘贴到这里……
+例如：
+柏杨晟 / 男 / 本科 / 人工智能专业
+技能：Python、PyTorch、OpenCV、YOLO、MySQL
+项目：基于 YOLOv8 的智能垃圾分类系统，mAP 39.9%；AI 桌面伙伴（PyQt5 + 通义千问 API）
+实习：西安中科光电 - 数据处理实习 2 个月"></textarea>
+
+      <div class="row" style="margin-top:14px">
+        <select id="matchTop">
+          <option value="5">看前 5 条</option>
+          <option value="10" selected>看前 10 条</option>
+          <option value="20">看前 20 条</option>
+        </select>
+        <button id="btnMatch" onclick="doMatch()">开始匹配</button>
+      </div>
+
+      <div class="status" id="statusMatch"></div>
+      <div id="resultMatch"></div>
+    </div>
+  </div>
+
+  <p class="footer">本地运行 · 数据不出本机</p>
+</div>
+
+<script>
+// ---------- 通用 ----------
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/[&<>"']/g, m => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('pane-' + name).classList.add('active');
+}
+
+// ---------- 标签1：搜索 ----------
+function fill(t) {
+  document.getElementById('q').value = t;
+  doSearch();
+}
+
+async function doSearch() {
+  const q = document.getElementById('q').value.trim();
+  const top = parseInt(document.getElementById('top').value, 10);
+  const statusEl = document.getElementById('status');
+  const resultsEl = document.getElementById('results');
+  const btn = document.getElementById('btn');
+
+  if (!q) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '请先输入你想问的问题';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '搜索中…';
+  statusEl.className = 'status';
+  statusEl.textContent = '正在检索，第一次可能稍慢（要加载模型）…';
+  resultsEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, top: top }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ('HTTP ' + res.status));
+    }
+    const data = await res.json();
+    statusEl.className = 'status';
+    statusEl.textContent = `找到 ${data.count} 个岗位 · 用时 ${data.elapsed_ms} 毫秒` +
+      (data.dropped && data.dropped.length ? ` · 已过滤 ${data.dropped.length} 个不相关的` : '');
+
+    if (!data.results || !data.results.length) {
+      resultsEl.innerHTML = '<div class="empty">没有找到匹配的岗位，换个说法试试？</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = data.results.map((r, i) => `
+      <div class="job">
+        <div class="job-head">
+          <div class="job-title">${i + 1}. ${esc(r.title)}</div>
+          <div class="job-salary">${esc(r.salary) || '薪资面议'}</div>
+        </div>
+        <div class="job-meta">
+          <span class="badge">${esc(r.company)}</span>
+          ${r.experience ? `<span class="badge">${esc(r.experience)}</span>` : ''}
+          ${r.degree ? `<span class="badge">${esc(r.degree)}</span>` : ''}
+          ${r.skills ? `<br>技能：${esc(r.skills)}` : ''}
+        </div>
+      </div>
+    `).join('');
+
+  } catch (e) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '出错了：' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始搜索';
+  }
+}
+
+// ---------- 标签2：简历匹配 ----------
+function loadFile(e) {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = ev => { document.getElementById('resume').value = ev.target.result; };
+  reader.readAsText(f, 'UTF-8');
+}
+
+async function doMatch() {
+  const resume = document.getElementById('resume').value.trim();
+  const top = parseInt(document.getElementById('matchTop').value, 10);
+  const statusEl = document.getElementById('statusMatch');
+  const resultsEl = document.getElementById('resultMatch');
+  const btn = document.getElementById('btnMatch');
+
+  if (!resume) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '请先粘贴简历内容';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '匹配中…';
+  statusEl.className = 'status';
+  statusEl.textContent = '正在分析你的简历并匹配岗位…';
+  resultsEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/match', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resume: resume, top: top }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ('HTTP ' + res.status));
+    }
+    const data = await res.json();
+    statusEl.className = 'status';
+    statusEl.textContent = `匹配到 ${data.count} 个岗位 · 用时 ${data.elapsed_ms} 毫秒`;
+
+    if (!data.results || !data.results.length) {
+      resultsEl.innerHTML = '<div class="empty">没有找到匹配的岗位</div>';
+      return;
+    }
+
+    resultsEl.innerHTML = data.results.map((r, i) => {
+      const sc = r.match_score;
+      const cls = sc >= 60 ? '' : (sc >= 35 ? 'mid' : 'low');
+      const hits = (r.hit_skills || []).map(s => `<span class="badge hit">${esc(s)}</span>`).join('');
+      const misses = (r.miss_skills || []).slice(0, 4).map(s => `<span class="badge miss">${esc(s)}</span>`).join('');
+      return `
+        <div class="job">
+          <div class="job-head">
+            <div class="job-title">${i + 1}. ${esc(r.title)}</div>
+            <div class="job-salary">${esc(r.salary) || '薪资面议'}</div>
+          </div>
+          <div class="score-bar">
+            <div class="score-track"><div class="score-fill" style="width:${Math.min(sc, 100)}%"></div></div>
+            <div class="score-num ${cls}">${sc} 分</div>
+          </div>
+          <div class="job-meta">
+            <span class="badge">${esc(r.company)}</span>
+            ${r.city ? `<span class="badge">${esc(r.city)}</span>` : ''}
+            ${r.experience ? `<span class="badge">${esc(r.experience)}</span>` : ''}
+            ${r.degree ? `<span class="badge">${esc(r.degree)}</span>` : ''}
+            ${r.note ? `<br><span style="color:#dd6b20">⚠ ${esc(r.note)}</span>` : ''}
+            ${hits ? `<br>✅ 你有：${hits}` : ''}
+            ${misses ? `<br>⚠️ 岗位还要：${misses}` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    statusEl.className = 'status err';
+    statusEl.textContent = '出错了：' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '开始匹配';
+  }
+}
+</script>
+</body>
+</html>
