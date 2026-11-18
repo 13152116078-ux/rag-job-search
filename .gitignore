@@ -1,0 +1,51 @@
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---- 虚拟环境 ----
+.venv/
+venv/
+env/
+ENV/
+
+# ---- 测试与缓存 ----
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 环境变量与密钥（务必不要提交）----
+.env
+.env.*
+*.key
+*.pem
+secrets.*
+
+# ---- IDE ----
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# ---- 向量库与模型缓存 ----
+chroma_db/
+chroma/
+*.chroma
+.cache/
+~/.cache/
+
+# ---- 本项目的数据/产物 ----
+# 数据文件不进版本库，按 README 的脚本自己生成
+chunks.jsonl
+jobs.jsonl
+*.csv
+outputs/
