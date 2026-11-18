@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  syntax:
+    name: Syntax & layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile every module
+        run: python -m compileall -q .
+
+      - name: Required files present
+        run: |
+          test -f README.md
+          test -f LICENSE
+          test -f requirements.txt
+          echo "layout OK"
+
+      - name: requirements.txt parses
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          lines = Path("requirements.txt").read_text(encoding="utf-8").splitlines()
+          reqs = [l.strip() for l in lines if l.strip() and not l.strip().startswith("#")]
+          assert reqs, "requirements.txt is empty"
+          print(f"{len(reqs)} requirements parsed")
+          for r in reqs:
+              print(" -", r)
+          PY
+
+      - name: Dataset files
+        run: |
+          if [ -d data ]; then ls -lh data; else echo "no data/ directory"; fi
